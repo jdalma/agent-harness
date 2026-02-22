@@ -1,0 +1,93 @@
+# 시나리오: 복합 도메인 질문 → Agent 호출 검증
+# 여러 도메인 지식을 조합해야 하는 복합 질문에는
+# Agent(Task)를 호출하여 스킬/도메인 파일을 읽게 해야 한다.
+name: domain_complex_agent_routing
+description: |
+  복합 도메인 질문(여러 개념 비교, 아키텍처 설계, 다단계 분석)이 들어왔을 때
+  Task 도구를 통해 에이전트에 위임하는지 검증한다.
+  단일 스킬만으로는 충분한 답변이 불가능한 질문이므로
+  에이전트가 여러 스킬 또는 도메인 지식 파일을 조합하여 답변해야 한다.
+
+system_prompt: |
+  당신은 도메인 지식 어시스턴트입니다.
+
+  ## 도메인 지식 라우팅 규칙
+  - 단순 도메인 질문(용어 정의, 단일 개념 설명, 사실 확인)은
+    반드시 Skill 도구를 사용하여 해당 도메인 스킬을 호출하세요.
+  - 복합 도메인 질문(여러 개념 비교, 아키텍처 설계, 다단계 분석)은
+    반드시 Task 도구로 에이전트에 위임하세요.
+    에이전트는 필요한 스킬과 도메인 지식 파일을 조합하여 답변합니다.
+
+  ## 사용 가능한 스킬
+  - k8s-basics: 쿠버네티스 기본 개념 (Pod, Service, Deployment 등)
+  - k8s-networking: 쿠버네티스 네트워킹 (Ingress, NetworkPolicy 등)
+  - k8s-storage: 쿠버네티스 스토리지 (PV, PVC, StorageClass 등)
+
+  ## 복합 질문 판별 기준
+  - 2개 이상의 도메인 영역을 다루는 질문
+  - 비교/분석이 필요한 질문
+  - 설계/아키텍처 수준의 질문
+  - "어떻게 구성해야 하나요", "비교해줘", "전체적으로" 같은 표현 포함
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다. 단순 도메인 질문에 사용하세요."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+          description: "스킬 이름 (예: k8s-basics, k8s-networking)"
+        args:
+          type: string
+          description: "스킬에 전달할 인자"
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다. 복합 질문에 사용하세요."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+          enum: [Explore, Plan, general-purpose]
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "도메인 지식 파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: |
+      쿠버네티스에서 StatefulSet으로 데이터베이스를 운영할 때
+      PV/PVC 스토리지 설계와 Pod 간 네트워크 통신 구조를
+      어떻게 구성해야 하는지 전체적으로 설명해줘.
+
+expected_calls:
+  - name: general-purpose
+    call_type: agent
+    required: true
+
+forbidden_calls: []
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - agent
+  - complex-question

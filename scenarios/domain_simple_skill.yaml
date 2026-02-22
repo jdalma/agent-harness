@@ -1,0 +1,88 @@
+# 시나리오: 단순 도메인 질문 → Skill 호출 검증
+# 단순한 도메인 지식 질문에는 Skill을 직접 호출해야 하며
+# Agent(Task)로 위임하면 안 된다.
+name: domain_simple_skill_routing
+description: |
+  단순 도메인 질문(단일 주제, 사실 확인 수준)이 들어왔을 때
+  system_prompt의 지시에 따라 Skill 도구를 호출하는지 검증한다.
+  복합적인 추론이 필요 없는 질문에 Agent를 호출하는 것은 비효율적이므로 금지한다.
+
+system_prompt: |
+  당신은 도메인 지식 어시스턴트입니다.
+
+  ## 도메인 지식 라우팅 규칙
+  - 단순 도메인 질문(용어 정의, 단일 개념 설명, 사실 확인)은
+    반드시 Skill 도구를 사용하여 해당 도메인 스킬을 호출하세요.
+  - 복합 도메인 질문(여러 개념 비교, 아키텍처 설계, 다단계 분석)만
+    Task 도구로 에이전트에 위임하세요.
+
+  ## 사용 가능한 스킬
+  - k8s-basics: 쿠버네티스 기본 개념 (Pod, Service, Deployment 등)
+  - k8s-networking: 쿠버네티스 네트워킹 (Ingress, NetworkPolicy 등)
+  - k8s-storage: 쿠버네티스 스토리지 (PV, PVC, StorageClass 등)
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다. 단순 도메인 질문에 사용하세요."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+          description: "스킬 이름 (예: k8s-basics, k8s-networking)"
+        args:
+          type: string
+          description: "스킬에 전달할 인자"
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다. 복합 질문에만 사용하세요."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+          enum: [Explore, Plan, general-purpose]
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "쿠버네티스에서 Pod가 뭐야?"
+
+expected_calls:
+  - name: k8s-basics
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: Explore
+    call_type: agent
+    reason: "단순 개념 질문에 에이전트 위임은 비효율적"
+  - name: general-purpose
+    call_type: agent
+    reason: "단순 개념 질문에 에이전트 위임은 비효율적"
+
+context_budget:
+  max_total_tokens: 30000
+  max_turns: 3
+
+tags:
+  - domain-routing
+  - skill
+  - simple-question
