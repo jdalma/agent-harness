@@ -14,6 +14,7 @@ from .models import (
     TokenUsage,
     Verdict,
 )
+from .tool_executor import ToolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -99,12 +100,22 @@ class ScenarioRunner:
         self,
         client: anthropic.Anthropic | None = None,
         tool_results_provider: dict[str, str] | None = None,
+        tool_executor: ToolExecutor | None = None,
     ):
         self._client = client or anthropic.Anthropic()
         self._tool_results = tool_results_provider or {}
+        self._tool_executor = tool_executor
 
     def _get_tool_result(self, tool_name: str, tool_input: dict) -> str:
-        """도구별 커스텀 시뮬레이션 결과를 반환."""
+        """도구 실행 결과를 반환.
+
+        우선순위:
+        1. ToolExecutor가 있으면 실제 실행
+        2. tool_results_provider에 커스텀 결과가 있으면 사용
+        3. 기본 시뮬레이션 결과
+        """
+        if self._tool_executor:
+            return self._tool_executor.execute(tool_name, tool_input)
         if tool_name in self._tool_results:
             return self._tool_results[tool_name]
         return "[harness] simulated tool result"

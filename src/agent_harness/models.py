@@ -59,6 +59,9 @@ class Scenario(BaseModel):
     model: str = "claude-sonnet-4-20250514"
     max_tokens: int = 4096
     tags: list[str] = Field(default_factory=list)
+    # 실제 프로젝트 연동
+    project_path: str | None = None  # 프로젝트 디렉토리 경로
+    execute_tools: bool = False  # True면 실제 도구 실행, False면 시뮬레이션
 
 
 # ── 실행 결과 모델 ──
