@@ -9,3 +9,5 @@ build/
 *.egg
 .env
 .claude
+node_modules/
+*.tsbuildinfo
