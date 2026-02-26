@@ -1,0 +1,93 @@
+# 시나리오: 암묵적 복수 도메인 → 오케스트레이터 위임 검증
+# 명시적으로 두 도메인을 언급하지 않지만, 의존성상 복수 도메인인 경우
+# (예: "체크아웃" = order + inventory 의존)
+name: edge_implicit_multi_domain
+description: |
+  표면적으로는 단일 도메인(order)처럼 보이지만,
+  체크아웃 플로우가 재고 검증(inventory)을 필수로 포함하므로
+  실제로는 복수 도메인 질문이다.
+  order의 dependencies에서 inventory가 필수 동기 의존으로 정의됨.
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임 (domain-orchestrator)
+
+  ## 복수 도메인 판별 패턴
+  - "A와 B": 명시적 복수 도메인
+  - "A에서 B로": 도메인 간 흐름
+  - "A 후 B": 순차적 도메인 관계
+  - 하나의 도메인 dependencies에서 다른 도메인이 핵심 의존인 경우
+
+  ## 도메인 에이전트 목록 (description으로 매칭)
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송. 체크아웃 시 재고 검증 필수 (inventory 의존)
+  - payment: 결제 처리, 환불, PG 연동
+  - inventory: 재고 검증, 예약/해제, 입출고, Redis 캐시
+  - product: 상품 카탈로그, 가격/옵션
+  - promotion: 프로모션, 쿠폰, 할인, GWP
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+          enum: [order, payment, inventory, product, promotion, domain-orchestrator, Explore, general-purpose]
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "체크아웃 과정에서 재고가 부족하면 어떻게 처리돼? 과매도 방지 로직을 상세히 설명해줘."
+
+expected_calls:
+  - name: domain-orchestrator
+    call_type: agent
+    required: true
+
+forbidden_calls:
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - multi-domain
+  - edge-case
+  - implicit-dependency
+  - order
+  - inventory

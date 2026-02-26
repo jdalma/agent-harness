@@ -1,0 +1,96 @@
+# 시나리오: 작업 범위 산정 → /domain:scope 스킬 호출 검증
+# 기능 추가 시 범위 산정/WBS 요청은 domain-scope 스킬을 통해 처리되어야 한다.
+name: skill_domain_scope
+description: |
+  기능 구현 범위 산정 요청 시:
+  1. domain-scope 스킬이 호출되는지 검증
+  2. domain-ask나 domain-impact가 아닌 domain-scope 선택 검증
+  3. 일반 에이전트 위임이 아닌 전용 스킬 사용 검증
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임
+  - 영향 분석 → /domain:impact
+  - 범위 산정 → /domain:scope
+
+  ## 스킬 목록
+  - /domain:ask — 도메인 질문 답변
+  - /domain:impact — 변경 영향 분석
+  - /domain:scope — 작업 범위 산정 (WBS)
+
+  ## 도메인 에이전트 목록
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송
+  - payment: 결제 처리, 환불, PG 연동
+  - inventory: 재고 검증, 예약/해제, 입출고
+  - product: 상품 카탈로그, 가격/옵션, 번들
+  - promotion: 프로모션, 쿠폰, 할인, GWP
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "GWP(Gift With Purchase) 기능을 새로 추가하려면 어떤 작업이 필요한지 범위 산정해줘."
+
+expected_calls:
+  - name: domain-scope
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: domain-ask
+    call_type: skill
+    reason: "범위 산정 요청에는 domain-scope 스킬을 사용해야 함"
+  - name: domain-impact
+    call_type: skill
+    reason: "범위 산정은 domain-scope이지 domain-impact가 아님"
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - skill-invocation
+  - domain-scope
+  - promotion

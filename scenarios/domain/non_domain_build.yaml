@@ -1,0 +1,104 @@
+# 시나리오: 비도메인 질문(빌드/배포) → 도메인 라우팅 하지 않음
+# CLAUDE.md 규칙: "빌드/배포/설정 관련 작업" → 라우팅하지 않는다
+name: non_domain_build_passthrough
+description: |
+  빌드/배포 관련 질문이 들어왔을 때:
+  1. 도메인 스킬(domain-ask, domain-impact, domain-scope)이 호출되지 않는지 검증
+  2. 도메인 에이전트(order, payment 등)가 호출되지 않는지 검증
+  3. 일반 도구(Bash, Read 등)를 직접 사용하는 것이 올바른 행동
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  비즈니스 도메인 질문 시 스킬/에이전트를 경유합니다.
+
+  ## 라우팅 대상이 아닌 경우
+  - 빌드/배포/설정 관련 작업
+  - 일반적인 프로그래밍 질문
+
+  이러한 경우에는 도메인 스킬이나 에이전트를 호출하지 않고
+  직접 도구를 사용하여 작업합니다.
+
+  ## 도메인 에이전트 목록
+  - order: 주문, 취소, 반품, 장바구니, 배송
+  - payment: 결제, 환불, PG
+  - inventory: 재고, 입출고
+  - product: 상품, 카탈로그
+  - promotion: 프로모션, 쿠폰, 할인
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Bash
+    description: "쉘 명령을 실행합니다"
+    input_schema:
+      type: object
+      properties:
+        command:
+          type: string
+      required: [command]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "Gradle 빌드가 실패하는데, build.gradle 파일 확인하고 의존성 충돌 해결해줘."
+
+expected_calls: []
+
+forbidden_calls:
+  - name: domain-ask
+    call_type: skill
+    reason: "빌드/배포 작업은 도메인 라우팅 대상이 아님"
+  - name: domain-impact
+    call_type: skill
+    reason: "빌드/배포 작업은 도메인 라우팅 대상이 아님"
+  - name: domain-scope
+    call_type: skill
+    reason: "빌드/배포 작업은 도메인 라우팅 대상이 아님"
+  - name: domain-orchestrator
+    call_type: agent
+    reason: "빌드/배포 작업은 도메인 라우팅 대상이 아님"
+
+context_budget:
+  max_total_tokens: 40000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - non-domain
+  - build
+  - passthrough

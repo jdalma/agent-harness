@@ -1,0 +1,85 @@
+# 시나리오: 단일 도메인(재고) 질문 → domain:ask 스킬 호출 검증
+name: single_domain_inventory_routing
+description: |
+  재고 도메인 관련 단일 질문이 들어왔을 때
+  domain-ask 스킬이 호출되는지 검증한다.
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  비즈니스 도메인 질문 시:
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임 (domain-orchestrator)
+  - 도메인 지식에 직접 접근하지 않는다
+
+  ## 도메인 에이전트 목록
+  - order: 주문, 취소, 반품, 장바구니, 배송
+  - payment: 결제, 환불, PG, PortOne, Stripe
+  - inventory: 재고 검증, 예약/해제, 입출고, Redis 캐시, 재입고 알림
+  - product: 상품, 카탈로그, SKU, 번들, 옵션
+  - promotion: 프로모션, 쿠폰, 할인, GWP, CartPriceRule
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "Redis 재고 캐시가 어떻게 동작해? 캐시 무효화 정책도 알려줘."
+
+expected_calls:
+  - name: domain-ask
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: domain-orchestrator
+    call_type: agent
+    reason: "재고 도메인 단일 질문"
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 40000
+  max_turns: 3
+
+tags:
+  - domain-routing
+  - single-domain
+  - inventory
+  - skill-invocation

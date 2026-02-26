@@ -6,7 +6,7 @@ import {
   type TokenUsage,
 } from '../scenario/models.js';
 import type { IToolExecutor } from '../executor/types.js';
-import type { ApiClient, ApiResponse } from './types.js';
+import type { ApiClient, ApiResponse, IScenarioRunner } from './types.js';
 import { classifyCall } from './classify-call.js';
 
 function buildTools(scenario: Scenario): Record<string, unknown>[] {
@@ -41,6 +41,7 @@ function extractToolCalls(
         callType,
         input: block.input ?? {},
         turn,
+        parentToolUseId: null,
       });
       toolResults.push({
         type: 'tool_result',
@@ -53,8 +54,8 @@ function extractToolCalls(
   return { calls, toolResults };
 }
 
-export class ScenarioRunner {
-  private readonly client: ApiClient;
+export class ScenarioRunner implements IScenarioRunner {
+  private client: ApiClient;
   private readonly toolResultsProvider: Record<string, string>;
   private toolExecutor: IToolExecutor | null;
 
@@ -69,10 +70,17 @@ export class ScenarioRunner {
   }
 
   private createDefaultClient(): ApiClient {
-    // Lazy import to avoid requiring @anthropic-ai/sdk at module load
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Anthropic = require('@anthropic-ai/sdk').default;
-    return new Anthropic();
+    // Lazy import will be resolved before first use via init()
+    return null as unknown as ApiClient;
+  }
+
+  private async ensureClient(): Promise<ApiClient> {
+    if (this.client === null) {
+      const mod = await import('@anthropic-ai/sdk');
+      const Anthropic = mod.default;
+      this.client = new Anthropic() as unknown as ApiClient;
+    }
+    return this.client;
   }
 
   private getToolResult(toolName: string, toolInput: Record<string, unknown>): string {
@@ -100,6 +108,7 @@ export class ScenarioRunner {
     let turns = 0;
 
     try {
+      const client = await this.ensureClient();
       for (let turn = 0; turn < maxTurns; turn++) {
         const params: Record<string, unknown> = {
           model: scenario.model,
@@ -113,7 +122,7 @@ export class ScenarioRunner {
           params.tools = tools;
         }
 
-        const response = await this.client.messages.create(params as never);
+        const response = await client.messages.create(params as never);
         tokenUsage = accumulateUsage(tokenUsage, response.usage);
         rawResponses.push({
           turn,

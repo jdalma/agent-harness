@@ -1,0 +1,91 @@
+# 시나리오: 복수 도메인(주문+재고) 질문 → 오케스트레이터 위임 검증
+# 주문과 재고 도메인이 동시에 관련되는 질문은
+# domain-orchestrator로 위임되어야 한다.
+name: multi_domain_order_inventory_routing
+description: |
+  주문-재고 도메인 간 흐름 질문이 들어왔을 때:
+  1. domain-orchestrator 에이전트가 호출되는지 검증
+  2. "A와 B" 패턴 (명시적 복수 도메인) 감지 확인
+  order의 dependencies.md에서 inventory가 필수 의존으로 정의되어 있음.
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임 (domain-orchestrator)
+
+  ## 복수 도메인 판별 패턴
+  - "A와 B": 명시적 복수 도메인
+  - "A에서 B로": 도메인 간 흐름
+  - "A 후 B": 순차적 도메인 관계
+
+  ## 도메인 에이전트 목록
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송 상태 추적
+  - payment: 결제 처리, 환불, PG 연동
+  - inventory: 재고 검증, 예약/해제, 입출고, Redis 캐시, 재입고 알림
+  - product: 상품 카탈로그, 가격/옵션
+  - promotion: 프로모션, 쿠폰, 할인
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+          enum: [order, payment, inventory, product, promotion, domain-orchestrator, Explore, general-purpose]
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "체크아웃 시 주문과 재고 예약이 어떻게 연동돼? 재고 부족 시 주문이 어떻게 처리되는지도 알려줘."
+
+expected_calls:
+  - name: domain-orchestrator
+    call_type: agent
+    required: true
+
+forbidden_calls:
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - multi-domain
+  - order
+  - inventory
+  - orchestrator

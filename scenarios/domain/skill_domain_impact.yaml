@@ -1,0 +1,97 @@
+# 시나리오: 변경 영향 분석 → /domain:impact 스킬 호출 검증
+# 엔티티/정책 변경 영향 분석 요청은 domain-impact 스킬을 통해
+# 오케스트레이터에 위임되어야 한다 (영향 분석은 본질적으로 복수 도메인).
+name: skill_domain_impact
+description: |
+  엔티티 변경 영향 분석 요청 시:
+  1. domain-impact 스킬이 호출되는지 검증
+  2. domain-ask가 아닌 domain-impact가 선택되는지 검증
+  3. 오케스트레이터 위임이 예상됨 (영향 분석은 항상 멀티 도메인)
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  비즈니스 도메인에 대한 질문, 분석, 코드 작업 시:
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임
+  - 영향 분석 → /domain:impact (항상 에이전트 모드)
+  - 범위 산정 → /domain:scope
+
+  ## 스킬 목록
+  - /domain:ask — 도메인 질문 답변
+  - /domain:impact — 변경 영향 분석
+  - /domain:scope — 작업 범위 산정 (WBS)
+  - /domain:scan — 코드 분석 → 컨텍스트 갱신
+  - /domain:init — 새 도메인 에이전트 생성
+
+  ## 도메인 에이전트 목록
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송
+  - payment: 결제 처리, 환불, PG 연동
+  - inventory: 재고 검증, 예약/해제, 입출고
+  - product: 상품 카탈로그, 가격/옵션, 번들
+  - promotion: 프로모션, 쿠폰, 할인, GWP
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "주문 엔티티에 '선물 포장 옵션' 필드를 추가하면 어떤 도메인에 영향이 있는지 분석해줘."
+
+expected_calls:
+  - name: domain-impact
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: domain-ask
+    call_type: skill
+    reason: "영향 분석 요청에는 domain-impact 스킬을 사용해야 함 (domain-ask 아님)"
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - skill-invocation
+  - domain-impact
+  - order

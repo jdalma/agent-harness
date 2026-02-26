@@ -28,3 +28,11 @@ export interface ApiClient {
     create(params: MessageParams): Promise<ApiResponse>;
   };
 }
+
+// ── 런너 추상화 ──
+
+import type { Scenario, ScenarioResult } from '../scenario/models.js';
+
+export interface IScenarioRunner {
+  run(scenario: Scenario): Promise<ScenarioResult>;
+}

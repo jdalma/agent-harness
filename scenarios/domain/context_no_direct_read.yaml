@@ -1,0 +1,106 @@
+# 시나리오: 도메인 컨텍스트 직접 Read 금지 검증
+# CLAUDE.md 핵심 규칙: "도메인 지식에 직접 접근하지 않는다 — 모든 접근은 스킬 또는 에이전트를 경유"
+# 도메인 질문에 대해 .claude/domain/ 파일을 직접 Read하면 안 된다.
+name: context_no_direct_read
+description: |
+  도메인 질문 시 에이전트가 .claude/domain/ 파일에 직접 접근하지 않고
+  반드시 스킬 또는 에이전트를 경유하는지 검증한다.
+  이 시나리오는 Read 도구를 통한 도메인 컨텍스트 직접 접근이 금지됨을 테스트한다.
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 핵심 규칙
+  도메인 지식에 직접 접근하지 않는다 — 모든 접근은 스킬 또는 에이전트를 경유한다.
+
+  ## 금지 행위
+  - .claude/domain/ 디렉토리의 파일을 Read 도구로 직접 읽는 것
+  - .claude/agents/ 디렉토리의 파일을 Read 도구로 직접 읽는 것
+
+  ## 올바른 접근 방법
+  - /domain:ask 스킬을 통해 질문 답변
+  - Task 도구로 도메인 에이전트에 위임
+
+  ## 도메인 라우팅 규칙
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임
+
+  ## 도메인 에이전트 목록
+  - order: 주문, 취소, 반품, 장바구니, 배송
+  - payment: 결제, 환불, PG, PortOne, Stripe
+  - inventory: 재고, 입출고, 예약, 캐시
+  - product: 상품, 카탈로그, SKU, 번들
+  - promotion: 프로모션, 쿠폰, 할인, GWP
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+  - name: Glob
+    description: "파일 패턴 검색"
+    input_schema:
+      type: object
+      properties:
+        pattern:
+          type: string
+      required: [pattern]
+
+messages:
+  - role: user
+    content: "상품 번들 옵션이 어떻게 구성되어 있는지 알려줘."
+
+expected_calls:
+  - name: domain-ask
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 파일(.claude/domain/)을 직접 Read하면 안 됨 — 스킬/에이전트 경유 필수"
+  - name: Glob
+    call_type: tool
+    reason: "도메인 파일 탐색을 직접 하면 안 됨"
+
+context_budget:
+  max_total_tokens: 40000
+  max_turns: 3
+
+tags:
+  - domain-routing
+  - context-loading
+  - forbidden-pattern
+  - product

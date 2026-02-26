@@ -1,0 +1,88 @@
+# 시나리오: 단일 도메인(결제) 질문 → domain:ask 스킬 호출 검증
+# 결제/환불 관련 질문은 단일 도메인 라우팅으로 domain:ask 스킬을 호출해야 한다.
+name: single_domain_payment_routing
+description: |
+  결제 도메인 관련 단일 질문이 들어왔을 때:
+  1. domain-ask 스킬이 호출되는지 검증
+  2. 직접 Read로 도메인 파일을 읽지 않는지 검증
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  비즈니스 도메인 질문 시:
+  - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
+  - 관련 에이전트 2개+ → 오케스트레이터 위임 (domain-orchestrator)
+  - 도메인 지식에 직접 접근하지 않는다 — 모든 접근은 스킬 또는 에이전트를 경유
+
+  ## 도메인 에이전트 목록
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송 상태 추적
+  - payment: 결제 처리, 환불, PG 연동 (PortOne/Stripe/PayPay), 결제 수단 관리
+  - inventory: 재고 검증, 예약/해제, 입출고, Redis 캐시
+  - product: 상품 카탈로그, 가격/옵션, 번들/구성상품
+  - promotion: 프로모션, 쿠폰, 할인, CartPriceRule, GWP
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+          enum: [order, payment, inventory, product, promotion, domain-orchestrator, Explore, general-purpose]
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+messages:
+  - role: user
+    content: "PortOne 결제 환불 프로세스가 어떻게 되는지 설명해줘."
+
+expected_calls:
+  - name: domain-ask
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: domain-orchestrator
+    call_type: agent
+    reason: "결제 도메인 단일 질문 — 오케스트레이터 불필요"
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지"
+
+context_budget:
+  max_total_tokens: 40000
+  max_turns: 3
+
+tags:
+  - domain-routing
+  - single-domain
+  - payment
+  - skill-invocation

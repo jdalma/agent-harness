@@ -1,0 +1,46 @@
+# [Integration] 단일 도메인(주문) 질문 → 전체 체인 E2E 검증
+# Agent SDK로 실제 실행하여 domain-ask 스킬 → order 에이전트 라우팅 체인을 검증합니다.
+# 실행: agent-harness scenarios/integration/single_domain_order_e2e.yaml --verbose
+name: single_domain_order_e2e
+description: |
+  [Integration] Agent SDK로 실제 실행하여 단일 주문 도메인 질문이
+  domain-ask 스킬 → order 에이전트로 라우팅되는 전체 체인을 검증합니다.
+
+  검증 포인트:
+  1. domain-ask 스킬이 호출되는가
+  2. 오케스트레이터가 불필요하게 호출되지 않는가
+  3. 전체 체인이 토큰 예산 내에서 완료되는가
+
+runner: agent-sdk
+
+agent_sdk_options:
+  setting_sources: [project]
+  permission_mode: bypassPermissions
+
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+messages:
+  - role: user
+    content: "주문 취소 조건이 뭐야? 어떤 상태에서 취소가 가능한지 알려줘."
+
+expected_calls:
+  - name: domain-ask
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: domain-orchestrator
+    call_type: agent
+    reason: "단일 도메인 질문에 오케스트레이터 위임은 불필요"
+
+context_budget:
+  max_total_tokens: 100000
+  max_turns: 10
+
+tags:
+  - integration
+  - domain-routing
+  - single-domain
+  - order
+  - e2e

@@ -60,6 +60,52 @@ describe('Scenario', () => {
     expect(s.executeTools).toBe(false);
   });
 
+  it('defaults runner to messages-api', () => {
+    const s = ScenarioSchema.parse({
+      name: 'test',
+      messages: [{ role: 'user', content: 'hello' }],
+    });
+    expect(s.runner).toBe('messages-api');
+    expect(s.agentSdkOptions).toBeNull();
+  });
+
+  it('parses runner as agent-sdk with options', () => {
+    const s = ScenarioSchema.parse({
+      name: 'test',
+      runner: 'agent-sdk',
+      messages: [{ role: 'user', content: 'hello' }],
+      agent_sdk_options: {
+        cwd: '/tmp/project',
+        setting_sources: ['project'],
+        permission_mode: 'bypassPermissions',
+      },
+    });
+    expect(s.runner).toBe('agent-sdk');
+    expect(s.agentSdkOptions).toEqual({
+      cwd: '/tmp/project',
+      settingSources: ['project'],
+      permissionMode: 'bypassPermissions',
+      allowedTools: null,
+      disallowedTools: null,
+    });
+  });
+
+  it('provides default agentSdkOptions when runner is agent-sdk', () => {
+    const s = ScenarioSchema.parse({
+      name: 'test',
+      runner: 'agent-sdk',
+      messages: [{ role: 'user', content: 'hello' }],
+    });
+    expect(s.runner).toBe('agent-sdk');
+    expect(s.agentSdkOptions).toEqual({
+      cwd: null,
+      settingSources: ['project'],
+      permissionMode: 'bypassPermissions',
+      allowedTools: null,
+      disallowedTools: null,
+    });
+  });
+
   // YAML uses snake_case keys — Zod must accept both camelCase and snake_case
   it('parses snake_case keys from YAML', () => {
     const s = ScenarioSchema.parse({
@@ -116,6 +162,12 @@ describe('ActualCall', () => {
     expect(call.callType).toBe('tool');
     expect(call.input).toEqual({});
     expect(call.turn).toBe(0);
+    expect(call.parentToolUseId).toBeNull();
+  });
+
+  it('accepts parentToolUseId', () => {
+    const call = ActualCallSchema.parse({ name: 'Read', parentToolUseId: 'tu_123' });
+    expect(call.parentToolUseId).toBe('tu_123');
   });
 });
 

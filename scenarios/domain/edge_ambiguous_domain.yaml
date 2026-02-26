@@ -1,0 +1,102 @@
+# 시나리오: 모호한 도메인 매칭 → 라우팅 시도 검증
+# 도메인 키워드가 명확하지 않은 경우에도 라우팅을 시도해야 한다.
+# "SalesOrder에 필드 추가" → order 도메인 (SalesOrder는 주문 엔티티)
+name: edge_ambiguous_domain_routing
+description: |
+  도메인 키워드가 직접적이지 않은 코드 수정 요청에서도
+  올바른 도메인을 식별하고 스킬을 호출하는지 검증한다.
+  "SalesOrder" → order 도메인으로 매칭되어야 함.
+
+system_prompt: |
+  당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
+
+  ## 도메인 라우팅 규칙
+  비즈니스 도메인에 대한 질문, 분석, 코드 작업 시:
+  1. 사용자 요청과 도메인 에이전트 description을 대조하여 관련 도메인 식별
+  2. 관련 도메인이 식별되면 반드시 스킬 또는 에이전트를 경유
+
+  ## 라우팅 대상 판별
+  다음 상황에서 자동 라우팅한다:
+  - 도메인 비즈니스 로직 질문
+  - 코드 수정/추가 시 관련 도메인 파악 (예: "SalesOrder에 필드 추가")
+  - 영향 분석 또는 범위 산정
+
+  ## 도메인 에이전트 목록
+  - order: 주문 생성, 취소, 반품, 장바구니, 배송 상태 추적
+  - payment: 결제, 환불, PG
+  - inventory: 재고, 입출고, 예약
+  - product: 상품, 카탈로그, SKU, 번들
+  - promotion: 프로모션, 쿠폰, 할인
+
+model: claude-sonnet-4-20250514
+max_tokens: 2048
+
+tools:
+  - name: Skill
+    description: "도메인 스킬을 호출합니다."
+    input_schema:
+      type: object
+      properties:
+        skill:
+          type: string
+        args:
+          type: string
+      required: [skill]
+
+  - name: Task
+    description: "서브에이전트를 실행합니다."
+    input_schema:
+      type: object
+      properties:
+        description:
+          type: string
+        prompt:
+          type: string
+        subagent_type:
+          type: string
+      required: [description, prompt, subagent_type]
+
+  - name: Read
+    description: "파일을 읽습니다"
+    input_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+      required: [file_path]
+
+  - name: Grep
+    description: "코드를 검색합니다"
+    input_schema:
+      type: object
+      properties:
+        pattern:
+          type: string
+        path:
+          type: string
+      required: [pattern]
+
+messages:
+  - role: user
+    content: "SalesOrder 엔티티에 giftWrapping 필드를 추가하려면 어떤 영향이 있을까?"
+
+expected_calls:
+  - name: domain-impact
+    call_type: skill
+    required: true
+
+forbidden_calls:
+  - name: Read
+    call_type: tool
+    reason: "도메인 컨텍스트 직접 Read 금지 — 영향 분석은 domain-impact 스킬 경유"
+
+context_budget:
+  max_total_tokens: 80000
+  max_turns: 5
+
+tags:
+  - domain-routing
+  - edge-case
+  - ambiguous-keyword
+  - order
+  - domain-impact
