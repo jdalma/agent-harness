@@ -1,13 +1,8 @@
-__pycache__/
-*.pyc
-*.egg-info/
 dist/
 build/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.egg
 .env
 .claude
 node_modules/
 *.tsbuildinfo
+results/
+.DS_Store

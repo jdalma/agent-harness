@@ -1,17 +1,19 @@
-# 시나리오: Tier 2 보조 도메인(content) 질문 → domain:ask 스킬 호출 검증
-# Tier 2 도메인도 Tier 1과 동일하게 라우팅 규칙을 따라야 한다.
-name: edge_tier2_domain_routing
+# 시나리오: 단일 도메인(OMS 설정) 질문 → domain:ask 스킬 호출 검증
+# Tier 2 보조 도메인. OMS 관리자 계정, 그룹, 메뉴 접근, 국가 설정, 권한 관리.
+name: single_domain_oms_settings_routing
 description: |
-  Tier 2 보조 도메인(content) 질문이 들어왔을 때도
-  동일하게 domain-ask 스킬이 호출되는지 검증한다.
-  Tier 2 도메인이라고 라우팅을 건너뛰면 안 된다.
+  OMS 설정 도메인 관련 단일 질문이 들어왔을 때:
+  1. domain-ask 스킬이 호출되는지 검증
+  2. member 도메인과 혼동하지 않는지 검증 (OMS 전용)
 
 system_prompt: |
   당신은 Tamburins 이커머스 도메인 어시스턴트입니다.
 
   ## 도메인 라우팅 규칙
+  비즈니스 도메인 질문 시:
   - 관련 에이전트 1개 → 스킬 경유 (/domain:ask)
-  - 관련 에이전트 2개+ → 오케스트레이터 위임
+  - 관련 에이전트 2개+ → 오케스트레이터 위임 (domain-orchestrator)
+  - 도메인 지식에 직접 접근하지 않는다
 
   ## Tier 1 핵심 도메인
   - order: 주문, 취소, 반품, 장바구니, 배송
@@ -19,15 +21,15 @@ system_prompt: |
   - inventory: 재고, 입출고, 예약, 캐시
   - product: 상품, 카탈로그, SKU, 번들, 옵션
   - promotion: 프로모션, 쿠폰, 할인, GWP, CartPriceRule
-  - member: 관리자 회원, 권한, 그룹, 메뉴 접근 제어
+  - member: 관리자 회원, 권한, 그룹, 메뉴 접근 제어 (ecom 시스템)
 
   ## Tier 2 보조 도메인
-  - content: FAQ, 공지, 배너 (메인/헤더/페이지/프로모션/스티키), 키워드 검색
+  - content: FAQ, 공지, 배너, 키워드
   - customer-support: CS, 상담, 이벤트 예약, CTI, Freshworks CRM
-  - integration: Salesforce, 레거시, 동기화, Maersk
-  - channel: 채널, 셀러, 매핑, 멀티채널
+  - integration: Salesforce, 레거시 동기화, 외부 물류
+  - channel: 채널, 셀러, 매핑, 멀티채널 플랫폼
   - qna: Q&A, 질문, 답변, Shoplinker
-  - oms-settings: OMS 관리자, 그룹, 메뉴, 국가 설정
+  - oms-settings: OMS 관리자 계정, OMS 그룹, OMS 메뉴, 국가 설정, OMS 권한 관리
   - oms-log: 감사 로그, 액션 추적, 변경 이력
   - admin-front: Admin 프론트엔드, 관리자 UI
   - oms-front: OMS 프론트엔드, OMS UI
@@ -71,7 +73,7 @@ tools:
 
 messages:
   - role: user
-    content: "메인 배너와 프로모션 배너의 차이점이 뭐야? 배너 타입별 특성을 설명해줘."
+    content: "OMS 관리자 계정의 그룹별 메뉴 접근 권한 관리는 어떻게 동작해?"
 
 expected_calls:
   - name: domain-ask
@@ -81,7 +83,7 @@ expected_calls:
 forbidden_calls:
   - name: domain-orchestrator
     call_type: agent
-    reason: "content 단일 도메인 질문 — 오케스트레이터 불필요"
+    reason: "oms-settings 단일 도메인 질문 — 오케스트레이터 불필요"
   - name: Read
     call_type: tool
     reason: "도메인 컨텍스트 직접 Read 금지"
@@ -94,5 +96,5 @@ tags:
   - domain-routing
   - single-domain
   - tier2
-  - content
-  - edge-case
+  - oms-settings
+  - skill-invocation

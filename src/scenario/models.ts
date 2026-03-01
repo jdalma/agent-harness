@@ -78,29 +78,6 @@ export const ContextBudgetSchema = z
   }));
 export type ContextBudget = z.output<typeof ContextBudgetSchema>;
 
-// ── Agent SDK 옵션 ──
-
-export const AgentSdkOptionsSchema = z
-  .object({
-    cwd: z.string().optional(),
-    setting_sources: z.array(z.string()).optional(),
-    settingSources: z.array(z.string()).optional(),
-    permission_mode: z.string().optional(),
-    permissionMode: z.string().optional(),
-    allowed_tools: z.array(z.string()).nullable().optional(),
-    allowedTools: z.array(z.string()).nullable().optional(),
-    disallowed_tools: z.array(z.string()).nullable().optional(),
-    disallowedTools: z.array(z.string()).nullable().optional(),
-  })
-  .transform((v) => ({
-    cwd: v.cwd ?? null,
-    settingSources: v.setting_sources ?? v.settingSources ?? ['project'],
-    permissionMode: v.permission_mode ?? v.permissionMode ?? 'bypassPermissions',
-    allowedTools: v.allowed_tools ?? v.allowedTools ?? null,
-    disallowedTools: v.disallowed_tools ?? v.disallowedTools ?? null,
-  }));
-export type AgentSdkOptions = z.output<typeof AgentSdkOptionsSchema>;
-
 // ── 시나리오 ──
 
 export const ScenarioSchema = z
@@ -121,13 +98,6 @@ export const ScenarioSchema = z
     max_tokens: z.number().optional(),
     maxTokens: z.number().optional(),
     tags: z.array(z.string()).default([]),
-    project_path: z.string().nullable().optional(),
-    projectPath: z.string().nullable().optional(),
-    execute_tools: z.boolean().optional(),
-    executeTools: z.boolean().optional(),
-    runner: z.enum(['messages-api', 'agent-sdk']).default('messages-api'),
-    agent_sdk_options: AgentSdkOptionsSchema.optional(),
-    agentSdkOptions: AgentSdkOptionsSchema.optional(),
   })
   .transform((v) => ({
     name: v.name,
@@ -142,18 +112,6 @@ export const ScenarioSchema = z
     model: v.model,
     maxTokens: pick(v.max_tokens, v.maxTokens, 4096),
     tags: v.tags,
-    projectPath: v.project_path ?? v.projectPath ?? null,
-    executeTools: v.execute_tools ?? v.executeTools ?? false,
-    runner: v.runner,
-    agentSdkOptions: v.runner === 'agent-sdk'
-      ? (v.agent_sdk_options ?? v.agentSdkOptions ?? {
-          cwd: null,
-          settingSources: ['project'],
-          permissionMode: 'bypassPermissions',
-          allowedTools: null,
-          disallowedTools: null,
-        })
-      : null,
   }));
 export type Scenario = z.output<typeof ScenarioSchema>;
 

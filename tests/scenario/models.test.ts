@@ -57,53 +57,6 @@ describe('Scenario', () => {
     expect(s.model).toBe('claude-sonnet-4-20250514');
     expect(s.maxTokens).toBe(4096);
     expect(s.tools).toEqual([]);
-    expect(s.executeTools).toBe(false);
-  });
-
-  it('defaults runner to messages-api', () => {
-    const s = ScenarioSchema.parse({
-      name: 'test',
-      messages: [{ role: 'user', content: 'hello' }],
-    });
-    expect(s.runner).toBe('messages-api');
-    expect(s.agentSdkOptions).toBeNull();
-  });
-
-  it('parses runner as agent-sdk with options', () => {
-    const s = ScenarioSchema.parse({
-      name: 'test',
-      runner: 'agent-sdk',
-      messages: [{ role: 'user', content: 'hello' }],
-      agent_sdk_options: {
-        cwd: '/tmp/project',
-        setting_sources: ['project'],
-        permission_mode: 'bypassPermissions',
-      },
-    });
-    expect(s.runner).toBe('agent-sdk');
-    expect(s.agentSdkOptions).toEqual({
-      cwd: '/tmp/project',
-      settingSources: ['project'],
-      permissionMode: 'bypassPermissions',
-      allowedTools: null,
-      disallowedTools: null,
-    });
-  });
-
-  it('provides default agentSdkOptions when runner is agent-sdk', () => {
-    const s = ScenarioSchema.parse({
-      name: 'test',
-      runner: 'agent-sdk',
-      messages: [{ role: 'user', content: 'hello' }],
-    });
-    expect(s.runner).toBe('agent-sdk');
-    expect(s.agentSdkOptions).toEqual({
-      cwd: null,
-      settingSources: ['project'],
-      permissionMode: 'bypassPermissions',
-      allowedTools: null,
-      disallowedTools: null,
-    });
   });
 
   // YAML uses snake_case keys — Zod must accept both camelCase and snake_case
@@ -115,8 +68,6 @@ describe('Scenario', () => {
       forbidden_calls: [{ name: 'Write', call_type: 'tool' }],
       context_budget: { max_turns: 5, max_total_tokens: 10000 },
       max_tokens: 2048,
-      project_path: '/tmp/project',
-      execute_tools: true,
       messages: [{ role: 'user', content: 'hi' }],
     });
     expect(s.systemPrompt).toBe('hello');
@@ -124,8 +75,6 @@ describe('Scenario', () => {
     expect(s.forbiddenCalls[0].name).toBe('Write');
     expect(s.contextBudget.maxTurns).toBe(5);
     expect(s.maxTokens).toBe(2048);
-    expect(s.projectPath).toBe('/tmp/project');
-    expect(s.executeTools).toBe(true);
   });
 });
 
